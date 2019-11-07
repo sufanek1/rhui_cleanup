@@ -1,18 +1,21 @@
 !#/bin/bash
 #script which checked if rpms in /var/lib/rhui/remote_share 
 #are also present in mongodb
-
-#mongo
-#use pulp_database
-#db.units_rpm.find({"filename" : "java-1.6.0-openjdk-devel-1.6.0.37-1.13.9.4.el5_11.x86_64.rpm"}).pretty()
-
 #if not, they are cleaned up.
 
-#ls /var/lib/rhui/remote_share | grep rpm
-
-for filename in $(ls /var/lib/rhui/remote_share | grep rpm)
+for filename in $(ls -R /var/lib/rhui/remote_share | grep rpm)
 do
 	echo "checking $filename"
-	mongo pulp_database --eval 'db.units_rpm.find({"filename" : "$filename"}).pretty()'
+	check=$(mongo pulp_database --eval 'db.units_rpm.find({"filename" : "'$filename'"})' | grep -v -e MongoDB -e pulp_database | wc -l)
+	if [ $check == 1 ]; then
+		echo "$filename is present in mongodb, skipping"
+	fi
+	if [ $check == 0 ]; then
+		remove=$(find /var/lib/rhui/remote_share -name $filename)
+		echo "removing $filename since it is not present in mongodb"
+		rm -rf $remove
+	
+	fi 
+
 done
-#mongo pulp_database --eval 'db.units_rpm.find({"filename" : "$filename"}).pretty()'
+
